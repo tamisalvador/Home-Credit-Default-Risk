@@ -1,6 +1,6 @@
 # Home Credit Default Risk - Project Overview
 
-This project was completed as part of a group assignment, where each team member developed and evaluated their own machine learning model. I contributed to the project individually by performing exploratory data analysis (EDA), preparing the data, and developing a decision tree model. As a group, we compared all of our models and ultimately selected the one with the best performance — a black-box model (XGBoost) — to serve as our final solution.
+This project was completed as part of a group assignment, where each team member developed and evaluated their own machine learning model. I contributed to the project individually by performing exploratory data analysis (EDA), preparing the data, and developing a decision tree model. As a group, we compared all of our models and ultimately selected the one with the best performance, a black-box model (XGBoost), to serve as our final solution.
 
 This repository showcases my individual contribution to the project.
 
@@ -20,7 +20,7 @@ I focused on exploratory data analysis (EDA), data preparation, and developing a
 - Further splitting the training data into 80/20 for validation
 - Training a decision tree with customized parameters
 - Visualizing the tree with `rpart.plot`
-- Evaluating the model using AUC (≈ 65%) on the validation set
+- Evaluating the model using AUC (**65%**) on the validation set
 - Identifying key predictors: EXT_SOURCE_3, EXT_SOURCE_2, and EXT_SOURCE_1
 
 Although my decision tree model was not selected as the final approach, it was useful for understanding feature importance and model interpretability.
