@@ -1,0 +1,275 @@
+---
+title: "Home Credit Default Risk"
+author: "Tami Salvador Camas"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+# Set the chunk default to print the code
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
+```
+
+# Introduction
+The first part of the notebook performs Exploratory Data Analysis (EDA) for the Home Credit Default Risk project. The primary objectives are to understand the data, identify potential problems, and explore relationships between the target variable and predictors.
+
+## Business and Analytic Problems
+Home Credit wants to provide loans to the unbanked population by providing safe and positive borrowing experiences. However, they need to predict the repayment capability of applicants, particularly those with insufficient or non-existent credit histories. The problem is that capable borrowers may be denied loans, and unsuitable loans may be issued, increasing default rates and reducing financial inclusion.
+
+The target variable is `TARGET`, where `1` indicates the applicant defaulted on the loan, and `0` indicates they did not. 
+
+## Questions to Guide Exploration
+1. What is the distribution of the target variable?
+2. Which variables have the most missing data, and how should we handle them?
+3. What are the relationships between the target variable and the predictors?
+4. Which predictors have the strongest correlation with the target variable?
+5. Are there any outliers or anomalies in the dataset?
+6. How does the data need to be preprocessed for modeling?
+
+# EDA
+
+## Load Necessary Libraries
+First, we'll load the libraries needed for the analysis.
+
+```{r}
+# Load necessary libraries
+library(tidyverse)
+library(skimr)
+library(janitor)
+```
+
+# Load the Data
+We'll load the train and test datasets.
+
+```{r}
+# Load the data
+train_data <- read.csv("application_train.csv")
+test_data <- read.csv("application_test.csv")
+```
+
+## Analysis
+We successfully loaded the train and test datasets. The train dataset will be used to explore relationships between variables and the target, while the test dataset will be used to validate our models.
+
+## Questions for Future Exploration
+- What's the percentage of missing values per column?
+
+- How should we treat those variables? Should we impute or bin the variables?
+
+# Check for Missing Data
+We'll identify and visualize the scope of missing data in the training and test datasets.
+
+```{r}
+# Check for missing data in training set and format percentages
+missing_data_train <- train_data %>%
+  summarise_all(~sum(is.na(.))/n() * 100) %>%
+  gather(key = "variable", value = "missing_percentage") %>%
+  filter(missing_percentage >= 20) %>%
+  arrange(desc(missing_percentage))
+
+# Check for missing data in test set and format percentages
+missing_data_test <- test_data %>%
+  summarise_all(~sum(is.na(.))/n() * 100) %>%
+  gather(key = "variable", value = "missing_percentage") %>%
+  filter(missing_percentage >= 20) %>%
+  arrange(desc(missing_percentage))
+
+# Visualize missing data in training set
+ggplot(missing_data_train, aes(x = reorder(variable, -missing_percentage), y = missing_percentage)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  labs(title = "Missing Data in Training Set (20% or more)", x = "Variable", y = "Missing Percentage (%)") +
+  scale_y_continuous(labels = scales::percent_format(scale = 1))
+
+# Visualize missing data in test set
+ggplot(missing_data_test, aes(x = reorder(variable, -missing_percentage), y = missing_percentage)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  labs(title = "Missing Data in Test Set (20% or more)", x = "Variable", y = "Missing Percentage (%)") +
+  scale_y_continuous(labels = scales::percent_format(scale = 1))
+```
+
+## Analysis
+
+We identified and visualized variables with 20% or more missing data in the training and test datasets. This helps us understand which variables may require further attention and how to handle missing data effectively.
+
+## Questions for Future Exploration
+
+- How do the deciles of these variables correlate with the target variable?
+
+- Can we derive meaningful insights from the decile categories for these variables?
+
+# Explore Relationships Between Target and Predictors
+We'll explore the relationships between the target variable and predictors, looking for strong predictors that could be included in a model.
+
+```{r}
+# Define numeric_train_data
+numeric_train_data <- train_data %>% select_if(is.numeric)
+
+# Calculate correlations for all numeric columns with TARGET
+correlations_all <- numeric_train_data %>%
+  select(-TARGET) %>% # Exclude the TARGET column from predictors
+  cor(numeric_train_data$TARGET, use = "complete.obs") %>%
+  as.data.frame() %>%
+  rownames_to_column(var = "predictor") %>%
+  rename(correlation = V1) %>%
+  arrange(desc(abs(correlation)))
+
+# Select the top 50 predictors based on absolute correlation
+top_50_predictors <- correlations_all %>%
+  head(50) %>%
+  pull(predictor)
+
+# Filter train_data and test_data to keep only the top 50 predictors
+train_data <- train_data %>%
+  select(all_of(c("TARGET", top_50_predictors)))
+
+test_data <- test_data %>%
+  select(all_of(top_50_predictors))
+
+# Display the top 50 correlations as a table
+top_50_correlations <- correlations_all %>%
+  filter(predictor %in% top_50_predictors)
+top_50_correlations
+```
+
+## Analysis
+We calculated the correlations for all numeric columns with the target variable and identified the top 50 predictors based on their absolute correlation values. These top 50 predictors are likely to be the most influential in predicting the target variable.
+
+- Predictor: The name of the predictor variable.
+
+- Correlation: The correlation coefficient of the predictor with the target variable. The values range from -1 to 1, where:
+
+-1: Perfect negative correlation.
+
+1: Perfect positive correlation.
+
+0: No correlation.
+
+## Questions for Future Exploration
+
+- How do these top predictors perform in predictive models?
+
+- Are there any interactions between these top predictors that could improve model performance?
+
+# Summarize the Data
+We'll summarize the training and test datasets using the skimr package.
+
+```{r}
+# Summarize the data
+skim(train_data)
+skim(test_data)
+```
+
+## Analysis
+The data summary provides an overview of the distribution, missing values, and basic statistics for each variable in the train and test datasets. This helps us understand the general characteristics of our data.
+
+## Questions for Future Exploration
+
+- Are there any variables with unexpected distributions or values?
+
+- How do the summary statistics of the top predictors compare between the train and test datasets?
+
+# Results and Reflection
+In this section, we'll summarize the key points of what we've learned through EDA, including any data problems discovered and strong relationships observed.
+
+## Summary of Key Points
+- Missing Data:
+
+Several variables have significant missing data, particularly those with more than 50% missing values. All of the variables with missing data were converted into deciles with a separate category for missing values.
+
+- Correlation Analysis:
+
+The top 50 predictors with the highest absolute correlation with the target variable were identified. These predictors will be crucial in building predictive models.
+
+- Strong Predictors:
+
+Variables like EXT_SOURCE_3, EXT_SOURCE_2, and EXT_SOURCE_1 have strong negative correlations with the target variable, indicating their importance in predicting loan default.
+
+- Data Preprocessing:
+
+Variables with high missing data percentages were handled by creating deciles, and the dataset was filtered to retain only the most relevant predictors.
+
+## Next Steps
+- Model Building:
+
+Use the top 50 predictors identified in this EDA to build and evaluate predictive models.
+
+- Further Exploration:
+
+Investigate the nature of the top predictors to understand why they are strongly correlated with the target variable.
+
+# Modeling
+
+## Prepare for Modeling
+``` {r}
+# Add necessary libraries for modeling and evaluation
+library(caret)
+library(randomForest)
+library(xgboost)
+library(pROC)  # For AUC calculation
+library(dplyr)
+library(rpart)  # For decision tree
+library(rpart.plot)  # For visualizing the tree
+```
+
+## Decision Tree
+```{r}
+# Set seed for reproducibility
+set.seed(42)
+
+# Step 1: Split the train_data into 80-20 for training and validation
+# Perform the 80-20 split
+split_indices <- createDataPartition(train_data$TARGET, p = 0.8, list = FALSE)
+
+# Create training and validation sets
+train_split <- train_data[split_indices, ]  # 80% for training
+valid_split <- train_data[-split_indices, ]  # 20% for validation
+
+# Check split dimensions
+cat("Training Data Dimensions:", dim(train_split), "\n")
+cat("Validation Data Dimensions:", dim(valid_split), "\n")
+
+# Step 2: Train the Decision Tree model on the training split
+tree_model <- rpart(
+  TARGET ~ ., 
+  data = train_split, 
+  method = "class", 
+  cp = 0.001,  # Lower complexity parameter to allow more splits
+  parms = list(prior = c(0.3, 0.7)),  # Handle class imbalance with adjusted weights
+  control = rpart.control(maxdepth = 10)  # Allow deeper splits for more granularity
+)
+
+# Step 3: Visualize the Decision Tree
+rpart.plot(
+  tree_model, 
+  type = 2, 
+  extra = 102,  # Display probabilities and counts for each node
+  under = TRUE, 
+  faclen = 0, 
+  cex = 0.8
+)
+
+# Step 4: Evaluate the model on the validation split
+# Make probability predictions for the validation set
+valid_pred_prob <- predict(tree_model, newdata = valid_split, type = "prob")[, 2]  # Probability for class "1"
+
+# Convert probabilities to binary class predictions
+valid_pred_class <- ifelse(valid_pred_prob > 0.5, 1, 0)
+
+# Step 5: Calculate AUC-ROC for the validation set
+valid_auc <- roc(valid_split$TARGET, valid_pred_prob)
+cat("Validation AUC:", auc(valid_auc), "\n")
+
+# Summarize the tree structure
+summary(tree_model)
+
+```
+I created a decision tree to make predictions by recursively splitting data into subsets based on feature values. Each internal node represents a decision, each branch represents an outcome of that decision, and each leaf node represents a final prediction or classification.
+
+The training data was initially split 70% for training and 30% for testing. Within the training data, I performed an additional 80/20 split to create a validation set. The first split in the tree occurred at EXT_SOURCE_3 ≥ 0.47. I used the rpart.plot package instead of the C50 library, as I encountered persistent issues getting C50 to run properly. While rpart.plot worked well, its tree visualization is less readable compared to C50’s. The strongest predictors identified by the tree were EXT_SOURCE_3, EXT_SOURCE_2, and EXT_SOURCE_1.
+
+Although the decision tree provided a strong baseline and was easy to interpret, its performance, measured by AUC on the validation set, was approximately 65%, which was lower than the other models developed by my teammates. After comparing results across all models, our group chose to move forward with a black-box method: XGBoost, which achieved an AUC of 76% and clearly outperformed the decision tree in predictive power. Nonetheless, the decision tree helped surface key predictors and provided early insights into the feature importance structure of the dataset.
+
+Overall, our final model performed decently. With a mean Kaggle score (AUC) of 76.16% in cross-validation, it performs significantly better than a random or simple majority classifier, though there is still room for improvement. If we were evaluating based solely on accuracy, we would use a decision threshold of 0.5, as it exceeded every benchmark set earlier in the project. However, doing so could increase the risk of lending to unreliable applicants. A lower decision threshold may provide a more balanced strategy—minimizing risk while still approving loans for trustworthy individuals, even if it comes at the cost of slightly lower overall accuracy.
